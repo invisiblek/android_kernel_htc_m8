@@ -120,6 +120,11 @@ static struct device_attribute sensors_class_attrs[] = {
 	__ATTR_NULL,
 };
 
+/**
+ * sensors_classdev_register - register a new object of sensors_classdev class.
+ * @parent: The device to register.
+ * @sensors_cdev: the sensors_classdev structure for this device.
+*/
 int sensors_classdev_register(struct device *parent,
 				struct sensors_classdev *sensors_cdev)
 {
@@ -138,6 +143,11 @@ int sensors_classdev_register(struct device *parent,
 }
 EXPORT_SYMBOL(sensors_classdev_register);
 
+/**
+ * sensors_classdev_unregister - unregister a object of sensors class.
+ * @sensors_cdev: the sensor device to unregister
+ * Unregister a previously registered via sensors_classdev_register object.
+*/
 void sensors_classdev_unregister(struct sensors_classdev *sensors_cdev)
 {
 	device_unregister(sensors_cdev->dev);

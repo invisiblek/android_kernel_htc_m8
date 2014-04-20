@@ -32,10 +32,12 @@
 
 #define UUID_TYPE
 
+/* Universally Unique Identifier (UUID) according to ISO/IEC 11578. */
 struct mc_uuid_t {
-	uint8_t		value[16];	
+	uint8_t		value[16];	/* Value of the UUID. */
 };
 
+/* UUID value used as free marker in service provider containers. */
 #define MC_UUID_FREE_DEFINE \
 	{ 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, \
 	  0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF }
@@ -44,6 +46,7 @@ static const struct mc_uuid_t MC_UUID_FREE = {
 	MC_UUID_FREE_DEFINE
 };
 
+/* Reserved UUID. */
 #define MC_UUID_RESERVED_DEFINE \
 	{ 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, \
 	  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 }
@@ -52,6 +55,7 @@ static const struct mc_uuid_t MC_UUID_RESERVED = {
 	MC_UUID_RESERVED_DEFINE
 };
 
+/* UUID for system applications. */
 #define MC_UUID_SYSTEM_DEFINE \
 	{ 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, \
 	  0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFE }
@@ -60,4 +64,4 @@ static const struct mc_uuid_t MC_UUID_SYSTEM = {
 	MC_UUID_SYSTEM_DEFINE
 };
 
-#endif 
+#endif /* _MCUUID_H_ */

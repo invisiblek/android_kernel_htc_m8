@@ -4053,10 +4053,27 @@ static ssize_t dpdm_pulldown_enable_store(struct device *dev,
 static DEVICE_ATTR(dpdm_pulldown_enable, S_IRUGO | S_IWUSR,
 		dpdm_pulldown_enable_show, dpdm_pulldown_enable_store);
 
+#ifdef CONFIG_MACH_DUMMY
+#elif defined(CONFIG_MACH_DUMMY)
+#elif defined(CONFIG_MACH_DUMMY)
+#elif defined(CONFIG_MACH_DUMMY)
+#elif defined(CONFIG_MACH_DUMMY)
+#elif defined(CONFIG_MACH_DUMMY)
+#elif defined(CONFIG_MACH_DUMMY)
+#endif
+
 int *htc_msm_otg_get_phy_init(int *phy_init)
 {
 	__maybe_unused char *mid;
 	__maybe_unused int i;
+#ifdef CONFIG_MACH_DUMMY
+#elif defined(CONFIG_MACH_DUMMY)
+#elif defined(CONFIG_MACH_DUMMY)
+#elif defined(CONFIG_MACH_DUMMY)
+#elif defined(CONFIG_MACH_DUMMY)
+#elif defined(CONFIG_MACH_DUMMY)
+#elif defined(CONFIG_MACH_DUMMY)
+#endif
 
 	printk("[USB] use dt phy init\n");
 	return phy_init;

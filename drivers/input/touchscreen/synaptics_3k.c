@@ -3909,8 +3909,10 @@ static int synaptics_ts_suspend(struct i2c_client *client)
 	pr_info("[TP] %s: enter\n", __func__);
 
 	if (ts->use_irq) {
-                disable_irq(client->irq);
-		ts->irq_enabled = 0;
+		if (ts->irq_enabled) {
+			disable_irq(client->irq);
+			ts->irq_enabled = 0;
+		}
 	} else {
 		hrtimer_cancel(&ts->timer);
 		ret = cancel_work_sync(&ts->work);
@@ -4096,8 +4098,10 @@ static int synaptics_ts_resume(struct i2c_client *client)
 	}
 
 	if (ts->use_irq) {
-                enable_irq(client->irq);
-		ts->irq_enabled = 1;
+		if (!ts->irq_enabled) {
+			enable_irq(client->irq);
+			ts->irq_enabled = 1;
+		}
 	}
 	else
 		hrtimer_start(&ts->timer, ktime_set(1, 0), HRTIMER_MODE_REL);

@@ -30,21 +30,26 @@
 
 #ifdef CONFIG_OF
 #include <linux/of_gpio.h>
-#endif 
+#endif /* CONFIG_OF */
 
 #define ACCEL_INPUT_DEV_NAME	"accelerometer"
 #define DEVICE_NAME		"kxtj9"
 
 #define G_MAX			8000
+/* OUTPUT REGISTERS */
 #define XOUT_L			0x06
 #define WHO_AM_I		0x0F
+/* CONTROL REGISTERS */
 #define INT_REL			0x1A
 #define CTRL_REG1		0x1B
 #define INT_CTRL1		0x1E
 #define DATA_CTRL		0x21
+/* CONTROL REGISTER 1 BITS */
 #define PC1_OFF			0x7F
 #define PC1_ON			(1 << 7)
+/* Data ready funtion enable bit: set during probe if using irq mode */
 #define DRDYE			(1 << 5)
+/* DATA CONTROL REGISTER BITS */
 #define ODR12_5F		0
 #define ODR25F			1
 #define ODR50F			2
@@ -52,20 +57,29 @@
 #define ODR200F		4
 #define ODR400F		5
 #define ODR800F		6
+/* INTERRUPT CONTROL REGISTER 1 BITS */
+/* Set these during probe if using irq mode */
 #define KXTJ9_IEL		(1 << 3)
 #define KXTJ9_IEA		(1 << 4)
 #define KXTJ9_IEN		(1 << 5)
+/* INPUT_ABS CONSTANTS */
 #define FUZZ			3
 #define FLAT			3
+/* RESUME STATE INDICES */
 #define RES_DATA_CTRL		0
 #define RES_CTRL_REG1		1
 #define RES_INT_CTRL1		2
 #define RESUME_ENTRIES		3
+/* POWER SUPPLY VOLTAGE RANGE */
 #define KXTJ9_VDD_MIN_UV	2000000
 #define KXTJ9_VDD_MAX_UV	3300000
 #define KXTJ9_VIO_MIN_UV	1750000
 #define KXTJ9_VIO_MAX_UV	1950000
 
+/*
+ * The following table lists the maximum appropriate poll interval for each
+ * available output data rate.
+ */
 
 static struct sensors_classdev sensors_cdev = {
 	.name = "kxtj9-accel",
@@ -134,7 +148,7 @@ static int kxtj9_i2c_read(struct kxtj9_data *tj9, u8 addr, u8 *data, int len)
 
 static void kxtj9_report_acceleration_data(struct kxtj9_data *tj9)
 {
-	s16 acc_data[3]; 
+	s16 acc_data[3]; /* Data bytes from hardware xL, xH, yL, yH, zL, zH */
 	s16 x, y, z;
 	int err;
 
@@ -146,7 +160,7 @@ static void kxtj9_report_acceleration_data(struct kxtj9_data *tj9)
 	y = le16_to_cpu(acc_data[tj9->pdata.axis_map_y]);
 	z = le16_to_cpu(acc_data[tj9->pdata.axis_map_z]);
 
-	
+	/* 8 bits output mode support */
 	if (!(tj9->ctrl_reg1 & RES_12BIT)) {
 		x <<= 4;
 		y <<= 4;
@@ -168,7 +182,7 @@ static irqreturn_t kxtj9_isr(int irq, void *dev)
 	struct kxtj9_data *tj9 = dev;
 	int err;
 
-	
+	/* data ready is the only possible interrupt type */
 	kxtj9_report_acceleration_data(tj9);
 
 	err = i2c_smbus_read_byte_data(tj9->client, INT_REL);
@@ -206,7 +220,7 @@ static int kxtj9_update_odr(struct kxtj9_data *tj9, unsigned int poll_interval)
 	int err;
 	int i;
 
-	
+	/* Use the lowest ODR that can support the requested poll interval */
 	for (i = 0; i < ARRAY_SIZE(kxtj9_odr_table); i++) {
 		tj9->data_ctrl = kxtj9_odr_table[i].mask;
 		if (poll_interval < kxtj9_odr_table[i].cutoff)
@@ -380,12 +394,12 @@ static int kxtj9_enable(struct kxtj9_data *tj9)
 	if (err < 0)
 		return err;
 
-	
+	/* ensure that PC1 is cleared before updating control registers */
 	err = i2c_smbus_write_byte_data(tj9->client, CTRL_REG1, 0);
 	if (err < 0)
 		return err;
 
-	
+	/* only write INT_CTRL_REG1 if in irq mode */
 	if (tj9->client->irq) {
 		err = i2c_smbus_write_byte_data(tj9->client,
 						INT_CTRL1, tj9->int_ctrl);
@@ -397,7 +411,7 @@ static int kxtj9_enable(struct kxtj9_data *tj9)
 	if (err < 0)
 		return err;
 
-	
+	/* turn on outputs */
 	tj9->ctrl_reg1 |= PC1_ON;
 	err = i2c_smbus_write_byte_data(tj9->client, CTRL_REG1, tj9->ctrl_reg1);
 	if (err < 0)
@@ -407,7 +421,7 @@ static int kxtj9_enable(struct kxtj9_data *tj9)
 	if (err < 0)
 		return err;
 
-	
+	/* clear initial interrupt if in irq mode */
 	if (tj9->client->irq) {
 		err = i2c_smbus_read_byte_data(tj9->client, INT_REL);
 		if (err < 0) {
@@ -518,7 +532,18 @@ static ssize_t kxtj9_enable_store(struct device *dev,
 static DEVICE_ATTR(enable, S_IRUGO|S_IWUSR|S_IWGRP,
 			kxtj9_enable_show, kxtj9_enable_store);
 
+/*
+ * When IRQ mode is selected, we need to provide an interface to allow the user
+ * to change the output data rate of the part.  For consistency, we are using
+ * the set_poll method, which accepts a poll interval in milliseconds, and then
+ * calls update_odr() while passing this value as an argument.  In IRQ mode, the
+ * data outputs will not be read AT the requested poll interval, rather, the
+ * lowest ODR that can support the requested interval.  The client application
+ * will be responsible for retrieving data from the input node at the desired
+ * interval.
+ */
 
+/* Returns currently selected poll interval (in ms) */
 static ssize_t kxtj9_get_poll_delay(struct device *dev,
 				struct device_attribute *attr, char *buf)
 {
@@ -528,6 +553,7 @@ static ssize_t kxtj9_get_poll_delay(struct device *dev,
 	return sprintf(buf, "%d\n", tj9->last_poll_interval);
 }
 
+/* Allow users to select a new poll interval (in ms) */
 static ssize_t kxtj9_set_poll_delay(struct device *dev,
 					struct device_attribute *attr,
 					const char *buf, size_t count)
@@ -542,12 +568,16 @@ static ssize_t kxtj9_set_poll_delay(struct device *dev,
 	if (error < 0)
 		return error;
 
-	
+	/* Lock the device to prevent races with open/close (and itself) */
 	mutex_lock(&input_dev->mutex);
 
 	if (tj9->enable)
 		disable_irq(client->irq);
 
+	/*
+	 * Set current interval to the greater of the minimum interval or
+	 * the requested interval
+	 */
 	tj9->last_poll_interval = max(interval, tj9->pdata.min_interval);
 
 	if (tj9->enable) {
@@ -757,7 +787,7 @@ static int kxtj9_parse_dt(struct device *dev,
 {
 	return -ENODEV;
 }
-#endif 
+#endif /* !CONFIG_OF */
 
 static int __devinit kxtj9_probe(struct i2c_client *client,
 				 const struct i2c_device_id *id)
@@ -835,7 +865,7 @@ static int __devinit kxtj9_probe(struct i2c_client *client,
 	}
 
 	if (client->irq) {
-		
+		/* If in irq mode, populate INT_CTRL_REG1 and enable DRDY. */
 		tj9->int_ctrl |= KXTJ9_IEN | KXTJ9_IEA | KXTJ9_IEL;
 		tj9->ctrl_reg1 |= DRDYE;
 

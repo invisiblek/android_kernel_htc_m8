@@ -55,16 +55,18 @@
 
 #define DRIVER_VERSION  "3.4.4ts"
 
+/* Driver Settings */
 #define CONFIG_STK_PS_ALS_USE_CHANGE_THRESHOLD
 #ifdef CONFIG_STK_PS_ALS_USE_CHANGE_THRESHOLD
-#define STK_ALS_CHANGE_THD	20	
-#endif	
-#define STK_INT_PS_MODE			1	
+#define STK_ALS_CHANGE_THD	20	/* The threshold to trigger ALS interrupt, unit: lux */
+#endif	/* #ifdef CONFIG_STK_PS_ALS_USE_CHANGE_THRESHOLD */
+#define STK_INT_PS_MODE			1	/* 1, 2, or 3	*/
 #define STK_POLL_PS
-#define STK_POLL_ALS		
+#define STK_POLL_ALS		/* ALS interrupt is valid only when STK_PS_INT_MODE = 1	or 4*/
 
 #define STK_DEBUG_PRINTF
 
+/* Define Register Map */
 #define STK_STATE_REG 			0x00
 #define STK_PSCTRL_REG 			0x01
 #define STK_ALSCTRL_REG 		0x02
@@ -93,6 +95,7 @@
 #define STK_SW_RESET_REG		0x80
 
 
+/* Define state reg */
 #define STK_STATE_EN_IRS_SHIFT  	7
 #define STK_STATE_EN_AK_SHIFT  		6
 #define STK_STATE_EN_ASO_SHIFT  	5
@@ -109,6 +112,7 @@
 #define STK_STATE_EN_ALS_MASK	0x02
 #define STK_STATE_EN_PS_MASK	0x01
 
+/* Define PS ctrl reg */
 #define STK_PS_PRS_SHIFT  		6
 #define STK_PS_GAIN_SHIFT  		4
 #define STK_PS_IT_SHIFT  		0
@@ -117,6 +121,7 @@
 #define STK_PS_GAIN_MASK		0x30
 #define STK_PS_IT_MASK			0x0F
 
+/* Define ALS ctrl reg */
 #define STK_ALS_PRS_SHIFT  		6
 #define STK_ALS_GAIN_SHIFT  	4
 #define STK_ALS_IT_SHIFT  		0
@@ -125,12 +130,14 @@
 #define STK_ALS_GAIN_MASK		0x30
 #define STK_ALS_IT_MASK			0x0F
 
+/* Define LED ctrl reg */
 #define STK_LED_IRDR_SHIFT  	6
 #define STK_LED_DT_SHIFT  		0
 
 #define STK_LED_IRDR_MASK		0xC0
 #define STK_LED_DT_MASK			0x3F
 
+/* Define interrupt reg */
 #define STK_INT_CTRL_SHIFT  	7
 #define STK_INT_OUI_SHIFT  		4
 #define STK_INT_ALS_SHIFT  		3
@@ -143,6 +150,7 @@
 
 #define STK_INT_ALS				0x08
 
+/* Define flag reg */
 #define STK_FLG_ALSDR_SHIFT  		7
 #define STK_FLG_PSDR_SHIFT  		6
 #define STK_FLG_ALSINT_SHIFT  		5
@@ -159,12 +167,14 @@
 #define STK_FLG_IR_RDY_MASK		0x02
 #define STK_FLG_NF_MASK			0x01
 
+/* misc define */
 #define MIN_ALS_POLL_DELAY_NS	110000000
 
 #define DEVICE_NAME		"stk_ps"
 #define ALS_NAME		"stk3x1x-ls"
 #define PS_NAME "proximity"
 
+/* POWER SUPPLY VOLTAGE RANGE */
 #define STK3X1X_VDD_MIN_UV	2000000
 #define STK3X1X_VDD_MAX_UV	3300000
 #define STK3X1X_VIO_MIN_UV	1750000
@@ -279,6 +289,7 @@ static int32_t stk3x1x_set_ps_thd_h(struct stk3x1x_data *ps_data, uint16_t thd_h
 static int32_t stk3x1x_set_als_thd_l(struct stk3x1x_data *ps_data, uint16_t thd_l);
 static int32_t stk3x1x_set_als_thd_h(struct stk3x1x_data *ps_data, uint16_t thd_h);
 static int stk3x1x_device_ctl(struct stk3x1x_data *ps_data, bool enable);
+//static int32_t stk3x1x_set_ps_aoffset(struct stk3x1x_data *ps_data, uint16_t offset);
 
 inline uint32_t stk_alscode2lux(struct stk3x1x_data *ps_data, uint32_t alscode)
 {
@@ -342,7 +353,7 @@ inline void stk_als_set_new_thd(struct stk3x1x_data *ps_data, uint16_t alscode)
     stk3x1x_set_als_thd_h(ps_data, (uint16_t)high_thd);
     stk3x1x_set_als_thd_l(ps_data, (uint16_t)low_thd);
 }
-#endif 
+#endif // CONFIG_STK_PS_ALS_USE_CHANGE_THRESHOLD
 
 
 static int32_t stk3x1x_init_all_reg(struct stk3x1x_data *ps_data, struct stk3x1x_platform_data *plat_data)
@@ -528,6 +539,61 @@ static int32_t stk3x1x_set_ps_thd_h(struct stk3x1x_data *ps_data, uint16_t thd_h
 	return i2c_smbus_write_word_data(ps_data->client,STK_THDH1_PS_REG,thd_h);
 }
 
+/*
+static int32_t stk3x1x_set_ps_foffset(struct stk3x1x_data *ps_data, uint16_t offset)
+{
+	uint8_t temp;
+    uint8_t* pSrc = (uint8_t*)&offset;
+    temp = *pSrc;
+    *pSrc = *(pSrc+1);
+    *(pSrc+1) = temp;
+    return i2c_smbus_write_word_data(ps_data->client,STK_DATA1_OFFSET_REG,offset);
+}
+
+static int32_t stk3x1x_set_ps_aoffset(struct stk3x1x_data *ps_data, uint16_t offset)
+{
+	uint8_t temp;
+    uint8_t* pSrc = (uint8_t*)&offset;
+	int ret;
+	uint8_t w_state_reg;
+	uint8_t re_en;
+
+	ret = i2c_smbus_read_byte_data(ps_data->client, STK_STATE_REG);
+	if (ret < 0)
+	{
+		printk(KERN_ERR "%s: write i2c error\n", __func__);
+		return ret;
+	}
+	re_en = (ret & STK_STATE_EN_AK_MASK) ? 1: 0;
+	if(re_en)
+	{
+		w_state_reg = (uint8_t)(ret & (~STK_STATE_EN_AK_MASK));
+		ret = i2c_smbus_write_byte_data(ps_data->client, STK_STATE_REG, w_state_reg);
+		if (ret < 0)
+		{
+			printk(KERN_ERR "%s: write i2c error\n", __func__);
+			return ret;
+		}
+		msleep(1);
+	}
+    temp = *pSrc;
+    *pSrc = *(pSrc+1);
+    *(pSrc+1) = temp;
+	ret = i2c_smbus_write_word_data(ps_data->client,0x0E,offset);
+	if(!re_en)
+		return ret;
+
+	w_state_reg |= STK_STATE_EN_AK_MASK;
+	ret = i2c_smbus_write_byte_data(ps_data->client, STK_STATE_REG, w_state_reg);
+	if (ret < 0)
+	{
+		printk(KERN_ERR "%s: write i2c error\n", __func__);
+		return ret;
+	}
+
+	return 0;
+}
+*/
 
 static inline uint32_t stk3x1x_get_ps_reading(struct stk3x1x_data *ps_data)
 {
@@ -548,7 +614,7 @@ static int32_t stk3x1x_set_flag(struct stk3x1x_data *ps_data, uint8_t org_flag_r
 	uint8_t w_flag;
 	w_flag = org_flag_reg | (STK_FLG_ALSINT_MASK | STK_FLG_PSINT_MASK | STK_FLG_OUI_MASK | STK_FLG_IR_RDY_MASK);
 	w_flag &= (~clr);
-	
+	//printk(KERN_INFO "%s: org_flag_reg=0x%x, w_flag = 0x%x\n", __func__, org_flag_reg, w_flag);
     return i2c_smbus_write_byte_data(ps_data->client,STK_FLAG_REG, w_flag);
 }
 
@@ -603,7 +669,7 @@ static int32_t stk3x1x_enable_ps(struct stk3x1x_data *ps_data, uint8_t enable)
 #ifndef STK_POLL_PS
 #ifndef STK_POLL_ALS
 		if(!(ps_data->als_enabled))
-#endif	
+#endif	/* #ifndef STK_POLL_ALS	*/
 			enable_irq(ps_data->irq);
 		msleep(1);
 		ret = stk3x1x_get_flag(ps_data);
@@ -620,7 +686,7 @@ static int32_t stk3x1x_enable_ps(struct stk3x1x_data *ps_data, uint8_t enable)
 		wake_lock_timeout(&ps_data->ps_wakelock, 3*HZ);
 		reading = stk3x1x_get_ps_reading(ps_data);
 		printk(KERN_INFO "%s: ps input event=%d, ps code = %d\n",__func__, near_far_state, reading);
-#endif	
+#endif	/* #ifndef STK_POLL_PS */
 	}
 	else
 	{
@@ -1527,9 +1593,9 @@ static ssize_t stk_send_store(struct device *dev, struct device_attribute *attr,
 
 	addr_u8 = (u8) addr;
 	cmd_u8 = (u8) cmd;
-	
+	//mutex_lock(&ps_data->io_lock);
 	ret = i2c_smbus_write_byte_data(ps_data->client,addr_u8,cmd_u8);
-	
+	//mutex_unlock(&ps_data->io_lock);
 	if (0 != ret)
 	{
 		printk(KERN_ERR "%s: i2c_smbus_write_byte_data fail\n", __func__);
@@ -1622,7 +1688,7 @@ static void stk_als_work_func(struct work_struct *work)
 	input_report_abs(ps_data->als_input_dev, ABS_MISC, ps_data->als_lux_last);
 	input_sync(ps_data->als_input_dev);
 	mutex_unlock(&ps_data->io_lock);
-	
+	//printk(KERN_INFO "%s: als input event %d lux\n",__func__, ps_data->als_lux_last);
 }
 #endif
 
@@ -1692,7 +1758,7 @@ static void stk_work_func(struct work_struct *work)
     int32_t ret;
     uint8_t disable_flag = 0;
     uint8_t org_flag_reg;
-#endif	
+#endif	/* #if ((STK_INT_PS_MODE != 0x03) && (STK_INT_PS_MODE != 0x02)) */
 
 #ifndef CONFIG_STK_PS_ALS_USE_CHANGE_THRESHOLD
 	uint32_t nLuxIndex;
@@ -1718,7 +1784,7 @@ static void stk_work_func(struct work_struct *work)
 	printk(KERN_INFO "%s: ps input event %d cm, ps code = %d\n",__func__, near_far_state, reading);
 #endif
 #else
-	
+	/* mode 0x01 or 0x04 */
 	org_flag_reg = stk3x1x_get_flag(ps_data);
 	if(org_flag_reg < 0)
 	{
@@ -1741,7 +1807,7 @@ static void stk_work_func(struct work_struct *work)
         stk3x1x_set_als_thd_l(ps_data, code_threshold_table[nLuxIndex-1]);
 #else
         stk_als_set_new_thd(ps_data, reading);
-#endif 
+#endif //CONFIG_STK_PS_ALS_USE_CHANGE_THRESHOLD
 		ps_data->als_lux_last = stk_alscode2lux(ps_data, reading);
 		input_report_abs(ps_data->als_input_dev, ABS_MISC, ps_data->als_lux_last);
 		input_sync(ps_data->als_input_dev);
@@ -1793,7 +1859,7 @@ static irqreturn_t stk_oss_irq_handler(int irq, void *data)
 	queue_work(pData->stk_wq,&pData->stk_work);
 	return IRQ_HANDLED;
 }
-#endif	
+#endif	/*	#if (!defined(STK_POLL_PS) || !defined(STK_POLL_ALS))	*/
 
 static inline void stk3x1x_init_fir(struct stk3x1x_data *ps_data)
 {
@@ -1928,7 +1994,7 @@ static void stk3x1x_late_resume(struct early_suspend *h)
 	mutex_unlock(&ps_data->io_lock);
 	return;
 }
-#endif	
+#endif	//#ifdef CONFIG_HAS_EARLYSUSPEND
 
 static int stk3x1x_power_ctl(struct stk3x1x_data *data, bool on)
 {
@@ -2175,7 +2241,7 @@ static int stk3x1x_parse_dt(struct device *dev,
 {
 	return -ENODEV;
 }
-#endif 
+#endif /* !CONFIG_OF */
 
 static int stk3x1x_probe(struct i2c_client *client,
                         const struct i2c_device_id *id)
@@ -2327,7 +2393,7 @@ static int stk3x1x_probe(struct i2c_client *client,
 	ps_data->stk_early_suspend.resume = stk3x1x_late_resume;
 	register_early_suspend(&ps_data->stk_early_suspend);
 #endif
-	
+	/* make sure everything is ok before registering the class device */
 	err = sensors_classdev_register(&client->dev, &sensors_light_cdev);
 	if (err)
 		goto err_power_on;
@@ -2335,7 +2401,7 @@ static int stk3x1x_probe(struct i2c_client *client,
 	if (err)
 		goto err_class_sysfs;
 
-	
+	/* enable device power only when it is enabled */
 	err = stk3x1x_power_ctl(ps_data, false);
 	if (err)
 		goto err_init_all_setting;

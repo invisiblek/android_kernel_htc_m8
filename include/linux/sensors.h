@@ -67,4 +67,4 @@ extern int sensors_classdev_register(struct device *parent,
 				 struct sensors_classdev *sensors_cdev);
 extern void sensors_classdev_unregister(struct sensors_classdev *sensors_cdev);
 
-#endif		
+#endif		/* __LINUX_SENSORS_H_INCLUDED */

@@ -497,7 +497,7 @@ static inline int cpu_is_mpq8092(void)
 
 static inline int cpu_is_msm8226(void)
 {
-#ifdef CONFIG_ARCH_MSM8226
+#ifdef CONFIG_ARCH_DUMMY
 	enum msm_cpu cpu = socinfo_get_msm_cpu();
 
 	BUG_ON(cpu == MSM_CPU_UNKNOWN);

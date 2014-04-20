@@ -39,6 +39,9 @@ static void x25_t20timer_expiry(unsigned long);
 static void x25_transmit_restart_confirmation(struct x25_neigh *nb);
 static void x25_transmit_restart_request(struct x25_neigh *nb);
 
+/*
+ *	Linux set/reset timer routines
+ */
 static inline void x25_start_t20timer(struct x25_neigh *nb)
 {
 	mod_timer(&nb->t20timer, jiffies + nb->t20);
@@ -63,6 +66,9 @@ static inline int x25_t20timer_pending(struct x25_neigh *nb)
 	return timer_pending(&nb->t20timer);
 }
 
+/*
+ *	This handles all restart and diagnostic frames.
+ */
 void x25_link_control(struct sk_buff *skb, struct x25_neigh *nb,
 		      unsigned short frametype)
 {
@@ -103,6 +109,9 @@ void x25_link_control(struct sk_buff *skb, struct x25_neigh *nb,
 			x25_send_frame(skbn, nb);
 }
 
+/*
+ *	This routine is called when a Restart Request is needed
+ */
 static void x25_transmit_restart_request(struct x25_neigh *nb)
 {
 	unsigned char *dptr;
@@ -127,6 +136,9 @@ static void x25_transmit_restart_request(struct x25_neigh *nb)
 	x25_send_frame(skb, nb);
 }
 
+/*
+ * This routine is called when a Restart Confirmation is needed
+ */
 static void x25_transmit_restart_confirmation(struct x25_neigh *nb)
 {
 	unsigned char *dptr;
@@ -149,6 +161,10 @@ static void x25_transmit_restart_confirmation(struct x25_neigh *nb)
 	x25_send_frame(skb, nb);
 }
 
+/*
+ *	This routine is called when a Clear Request is needed outside of the context
+ *	of a connected socket.
+ */
 void x25_transmit_clear_request(struct x25_neigh *nb, unsigned int lci,
 				unsigned char cause)
 {
@@ -194,6 +210,9 @@ void x25_transmit_link(struct sk_buff *skb, struct x25_neigh *nb)
 	}
 }
 
+/*
+ *	Called when the link layer has become established.
+ */
 void x25_link_established(struct x25_neigh *nb)
 {
 	switch (nb->state) {
@@ -208,14 +227,21 @@ void x25_link_established(struct x25_neigh *nb)
 	}
 }
 
+/*
+ *	Called when the link layer has terminated, or an establishment
+ *	request has failed.
+ */
 
 void x25_link_terminated(struct x25_neigh *nb)
 {
 	nb->state = X25_LINK_STATE_0;
-	
+	/* Out of order: clear existing virtual calls (X.25 03/93 4.6.3) */
 	x25_kill_by_neigh(nb);
 }
 
+/*
+ *	Add a new device.
+ */
 void x25_link_device_up(struct net_device *dev)
 {
 	struct x25_neigh *nb = kmalloc(sizeof(*nb), GFP_ATOMIC);
@@ -230,6 +256,9 @@ void x25_link_device_up(struct net_device *dev)
 	nb->dev      = dev;
 	nb->state    = X25_LINK_STATE_0;
 	nb->extended = 0;
+	/*
+	 * Enables negotiation
+	 */
 	nb->global_facil_mask = X25_MASK_REVERSE |
 				       X25_MASK_THROUGHPUT |
 				       X25_MASK_PACKET_SIZE |
@@ -242,6 +271,13 @@ void x25_link_device_up(struct net_device *dev)
 	write_unlock_bh(&x25_neigh_list_lock);
 }
 
+/**
+ *	__x25_remove_neigh - remove neighbour from x25_neigh_list
+ *	@nb - neigh to remove
+ *
+ *	Remove neighbour from x25_neigh_list. If it was there.
+ *	Caller must hold x25_neigh_list_lock.
+ */
 static void __x25_remove_neigh(struct x25_neigh *nb)
 {
 	skb_queue_purge(&nb->queue);
@@ -253,6 +289,9 @@ static void __x25_remove_neigh(struct x25_neigh *nb)
 	}
 }
 
+/*
+ *	A device has been removed, remove its links.
+ */
 void x25_link_device_down(struct net_device *dev)
 {
 	struct x25_neigh *nb;
@@ -272,6 +311,9 @@ void x25_link_device_down(struct net_device *dev)
 	write_unlock_bh(&x25_neigh_list_lock);
 }
 
+/*
+ *	Given a device, return the neighbour address.
+ */
 struct x25_neigh *x25_get_neigh(struct net_device *dev)
 {
 	struct x25_neigh *nb, *use = NULL;
@@ -293,6 +335,9 @@ struct x25_neigh *x25_get_neigh(struct net_device *dev)
 	return use;
 }
 
+/*
+ *	Handle the ioctls that control the subscription functions.
+ */
 int x25_subscr_ioctl(unsigned int cmd, void __user *arg)
 {
 	struct x25_subscrip_struct x25_subscr;
@@ -342,6 +387,9 @@ out_dev_put:
 }
 
 
+/*
+ *	Release all memory associated with X.25 neighbour structures.
+ */
 void __exit x25_link_free(void)
 {
 	struct x25_neigh *nb;

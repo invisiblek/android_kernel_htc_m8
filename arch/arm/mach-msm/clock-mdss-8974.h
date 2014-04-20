@@ -28,7 +28,7 @@ int hdmi_pll_set_rate(unsigned long rate);
 
 struct edp_pll_vco_clk {
 	unsigned long ref_clk_rate;
-	unsigned long rate;	
+	unsigned long rate;	/* vco rate */
 	unsigned long *rate_list;
 
 	struct clk c;

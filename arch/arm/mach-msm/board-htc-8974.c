@@ -437,7 +437,7 @@ static struct android_usb_platform_data android_usb_pdata = {
 	.usb_rmnet_interface = "smd,bam",
 	.usb_diag_interface = "diag",
 	.fserial_init_string = "smd:modem,tty,tty:autobot,tty:serial,tty:autobot,tty:acm",
-#ifdef CONFIG_MACH_M8_WL
+#ifdef CONFIG_MACH_DUMMY
 	.match = m8wl_usb_product_id_match,
 #endif
 	.nluns = 1,
@@ -469,17 +469,12 @@ static void htc_8974_add_usb_devices(void)
 	}
 #ifdef CONFIG_MACH_M8
 	android_usb_pdata.product_id	= 0x061A;
-#elif defined(CONFIG_MACH_M8_WL)
-	android_usb_pdata.product_id	= 0x0616;
-	android_usb_pdata.vzw_unmount_cdrom = 1;
-#elif defined(CONFIG_MACH_M8_UHL)
-	android_usb_pdata.product_id	= 0x063A;
 #else
 	
 #endif
 	platform_device_register(&android_usb_device);
 }
-#if (defined(CONFIG_MACH_GLU_U) || defined(CONFIG_MACH_GLU_WLJ))
+#if (defined(CONFIG_MACH_DUMMY) || defined(CONFIG_MACH_DUMMY))
 static ssize_t syn_vkeys_show(struct kobject *kobj,
 			struct kobj_attribute *attr, char *buf)
 {
@@ -669,7 +664,7 @@ void __init htc_8974_add_drivers(void)
 	htc_batt_cell_register();
 	msm8974_add_batt_devices();
 #endif 
-#if (defined(CONFIG_MACH_GLU_U) || defined(CONFIG_MACH_GLU_WLJ))
+#if (defined(CONFIG_MACH_DUMMY) || defined(CONFIG_MACH_DUMMY))
 	syn_init_vkeys_8974();
 #endif
 	htc_8974_cable_detect_register();

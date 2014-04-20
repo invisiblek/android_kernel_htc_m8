@@ -574,7 +574,7 @@ void __init msm_map_mpq8092_io(void)
 }
 #endif 
 
-#ifdef CONFIG_ARCH_MSM8226
+#ifdef CONFIG_ARCH_DUMMY
 static struct map_desc msm_8226_io_desc[] __initdata = {
 	MSM_CHIP_DEVICE(QGIC_DIST, MSM8226),
 	MSM_CHIP_DEVICE(QGIC_CPU, MSM8226),

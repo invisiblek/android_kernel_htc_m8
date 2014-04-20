@@ -74,6 +74,10 @@ static void vsg_encode_helper_func(struct work_struct *task)
 	struct vsg_encode_work *work =
 		container_of(task, struct vsg_encode_work, work);
 
+	/*
+	 * Note: don't need to lock for context below as we only
+	 * access fields that are "static".
+	 */
 	int rc = vsg_encode_frame(work->context, work->buf);
 	if (rc < 0) {
 		mutex_lock(&work->context->mutex);
@@ -351,7 +355,7 @@ static int vsg_stop(struct v4l2_subdev *sd)
 
 	mutex_lock(&context->mutex);
 	context->state = VSG_STATE_STOPPED;
-	{ 
+	{ /*delete pending buffers as we're not going to encode them*/
 		struct list_head *pos, *next;
 		list_for_each_safe(pos, next, &context->free_queue.node) {
 			struct vsg_buf_info *temp =
@@ -397,7 +401,7 @@ static long vsg_queue_buffer(struct v4l2_subdev *sd, void *arg)
 	WFD_MSG_DBG("Queue frame with paddr %p\n",
 			(void *)buf_info->mdp_buf_info.paddr);
 
-	{ 
+	{ /*return pending buffers as we're not going to encode them*/
 		struct list_head *pos, *next;
 		list_for_each_safe(pos, next, &context->free_queue.node) {
 			struct vsg_buf_info *temp =
@@ -435,6 +439,11 @@ static long vsg_queue_buffer(struct v4l2_subdev *sd, void *arg)
 	} else if (context->mode == VSG_MODE_CFR) {
 		if (!context->last_buffer) {
 			push = true;
+			/*
+			 * We need to reset the timer after pushing the buffer
+			 * otherwise, diff between two consecutive frames might
+			 * be less than max_frame_interval (for just one sample)
+			 */
 			vsg_reset_timer(&context->threshold_timer,
 				ns_to_ktime(context->max_frame_interval));
 		}
@@ -461,10 +470,13 @@ static long vsg_return_ip_buffer(struct v4l2_subdev *sd, void *arg)
 {
 	struct vsg_context *context = NULL;
 	struct vsg_buf_info *buf_info = NULL, *temp = NULL,
-			
+			/* last buffer sent for encoding */
 			*last_buffer = NULL,
+			/* buffer we expected to get back, ideally ==
+			 * last_buffer, but might not be if sequence is
+			 * encode, encode, return */
 			*expected_buffer = NULL,
-			
+			/* buffer that we've sent for encoding at some point */
 			*known_buffer = NULL;
 	bool is_last_buffer = false;
 	int rc = 0;
@@ -502,6 +514,8 @@ static long vsg_return_ip_buffer(struct v4l2_subdev *sd, void *arg)
 		rc = -EBADHANDLE;
 		goto return_ip_buf_bad_buf;
 	} else if (known_buffer != expected_buffer) {
+		/* Buffers can come back out of order if encoder decides to drop
+		 * a frame */
 		WFD_MSG_DBG(
 				"Got a buffer (%p) out of order. Preferred to get %p\n",
 				(void *)known_buffer->mdp_buf_info.paddr,
@@ -650,7 +664,7 @@ static long vsg_set_frame_interval_variance(struct v4l2_subdev *sd, void *arg)
 
 	mutex_lock(&context->mutex);
 
-	
+	/* Convert from percentage to a value in nano seconds */
 	variance *= context->frame_interval;
 	do_div(variance, 100);
 
@@ -700,7 +714,7 @@ static long vsg_set_mode(struct v4l2_subdev *sd, void *arg)
 	switch (*mode) {
 	case VSG_MODE_CFR:
 		context->max_frame_interval = context->frame_interval;
-		
+		/*fall through*/
 	case VSG_MODE_VFR:
 		context->mode = *mode;
 		break;
